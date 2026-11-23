@@ -4,7 +4,7 @@
 
 This project is a UML class diagram for an asset portfolio application. It shows how we extended a portfolio that only held fixed assets (jewelry, gold, houses) so it can also include liquid accounts (bank accounts) and debt (credit cards), giving a better estimate of real net worth.
 
-![Asset Portfolio class diagram](assets-diagrams/asset-portfolio-class-diagram.png)
+![Asset Portfolio class diagram](asset-portfolio-class-diagram.png)
 
 A PDF version and the editable draw.io source are in [`assets-diagrams/`](assets-diagrams/).
 
