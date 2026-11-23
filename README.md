@@ -75,13 +75,3 @@ Purple is the interface, blue is the abstract class and fixed assets, green is t
 ## Tools
 
 Diagram made with [draw.io](https://www.drawio.com) (free).
-
-## Files
-
-```
-assets-diagrams/
-├── asset-portfolio-class-diagram.drawio   (editable source)
-├── asset-portfolio-class-diagram.pdf
-└── asset-portfolio-class-diagram.png
-README.md
-```
