@@ -6,7 +6,7 @@ This project is a UML class diagram for an asset portfolio application. It shows
 
 ![Asset Portfolio class diagram](asset-portfolio-class-diagram.png)
 
-A PDF version and the editable draw.io source are in [`assets-diagrams/`](assets-diagrams/).
+A PDF version and the editable draw.io source are included in this repository.
 
 ## Project specs
 
@@ -71,6 +71,126 @@ Purple is the interface, blue is the abstract class and fixed assets, green is t
 - Why Java has single inheritance but multiple interface implementation
 - Abstraction and programming to an interface
 - UML relationships: implementation, inheritance, aggregation
+- How `implements`, `@Override` and compile-time contracts work in Java (see **What we learned**)
+
+## What we learned (Q&A)
+
+These are questions we asked while building this project, with the answers we worked out.
+
+### 1. How do `BankAccount`, `CreditCard` and `FixedAsset` implement `Valuable`? Is it like `extends`?
+
+It is similar, but not the same. With `extends`, a child inherits the parent's actual code. With `implements` on a plain interface, there is no code to inherit. The class only inherits a **requirement**: "I will have a `public double getValue()`." Each class then writes its own body.
+
+```java
+public interface Valuable {
+    double getValue();          // no body; implicitly public abstract
+}
+
+public abstract class FixedAsset implements Valuable {
+    private String name;
+    private double marketValue;
+
+    public FixedAsset(String name, double marketValue) {
+        this.name = name;
+        this.marketValue = marketValue;
+    }
+    // No getValue() here. That is allowed because the class is abstract.
+}
+
+public class BankAccount implements Valuable {
+    private String name;
+    private double balance;
+
+    public BankAccount(String name) { this.name = name; }
+
+    public void deposit(double amount)  { balance += amount; }
+    public void withdraw(double amount) { balance -= amount; }
+
+    @Override
+    public double getValue() { return balance; }
+}
+
+public class CreditCard implements Valuable {
+    private String name;
+    private double balance;   // amount owed
+
+    public CreditCard(String name) { this.name = name; }
+
+    public void charge(double amount) { balance += amount; }
+    public void pay(double amount)    { balance -= amount; }
+
+    @Override
+    public double getValue() { return -balance; }   // debt lowers net worth
+}
+```
+
+`Jewelry`, `Gold` and `House` extend `FixedAsset`, so they get the requirement through their parent. Because `FixedAsset` is abstract it may skip `getValue()`, but the first **concrete** class below it must write it.
+
+### 2. Do we need `@Override`?
+
+It is not required, but it is strongly recommended. `@Override` tells the compiler "this must match a method in a parent or interface." If we typo `getvalue()` or write `int getValue()`, we get a clear compile error right away. Without it, Java treats the method as a brand-new one, and the confusing error shows up somewhere else.
+
+Also, the method must be `public` in the implementing class, because interface methods are public.
+
+### 3. What if `Gold` or `BankAccount` did not have `getValue()`? Would it compile?
+
+No. It is a compile error:
+
+```
+BankAccount is not abstract and does not override abstract method getValue() in Valuable
+```
+
+The class signed the contract, so a concrete class must deliver every method in it. `Gold` gets the same error through `FixedAsset`. The only ways around it are to write the method, or to mark the class `abstract` (which means it can never be created with `new`, and the next concrete class down must provide the method). A method with the wrong signature, such as `int getValue()` or `getValue(int x)`, does not count either.
+
+### 4. Why use an interface instead of copying `getValue()` into each class?
+
+The problem is not the method, it is the shared **type**. `Portfolio` needs one list that can hold everything:
+
+```java
+public class Portfolio {
+    private ArrayList<Valuable> valuables = new ArrayList<>();
+
+    public void add(Valuable v) { valuables.add(v); }
+
+    public double getValue() {
+        double total = 0;
+        for (Valuable v : valuables) {
+            total += v.getValue();   // works for ANY Valuable
+        }
+        return total;
+    }
+}
+```
+
+Without a shared interface:
+
+- `BankAccount` cannot go in a list of `Asset`, because the project says it must not extend `Asset`.
+- The only common type left is `Object`, which has no `getValue()`, so `v.getValue()` would not compile.
+- We would need `instanceof` checks for every class and a new branch each time we add one.
+
+The interface gives the compiler a guarantee: anything in the list has `getValue()`. Adding a `Stock` class later only needs `implements Valuable`, and `Portfolio` does not change.
+
+We could have made `Valuable` an abstract class instead, but then every class would use up its one `extends` slot. A class can implement many interfaces, and `Valuable` has no shared state, which suits an interface.
+
+### 5. Why is this considered good practice? What are other use cases, and how does it relate to system design?
+
+"Program to an interface, not an implementation" is a widely accepted design principle. It gives us:
+
+1. **Loose coupling:** code that uses `Valuable` does not depend on `House` or `BankAccount`.
+2. **Extensibility:** add new classes without editing working code (the "open for extension, closed for modification" idea).
+3. **Compiler-checked contracts:** the compiler guarantees the method exists.
+
+Other use cases:
+
+- **Java's own libraries:** `List<String> names = new ArrayList<>();` can later become a `LinkedList` by changing one word.
+- **`Comparable` / `Comparator`:** sorting works on any class that promises a `compareTo` method.
+- **Swappable behavior:** for example `TaxCalculator` with different implementations per country.
+- **Testing:** use a real data feed in production and a fake one in tests, behind the same interface.
+- **Multiple roles:** a class can extend one parent but implement many interfaces.
+
+In larger system design the same idea appears as boundaries between layers and services. A service layer can depend on a `Repository` interface instead of a specific database. An API between two services is a contract that says what is available and nothing about how it is built. Teams can agree on the interface first and build both sides in parallel, and wrapping a vendor (payments, an AI model) behind our own interface makes switching vendors a contained change.
+
+**Caveat:** this is a guideline, not a law. An interface for a class that will only ever have one implementation, with no tests swapping it out, adds indirection for little benefit. A good rule of thumb is to add an interface when we can name a second implementation, or when another part of the system needs a stable boundary. Our exercise qualifies, because three unrelated classes must live in one list.
 
 ## Tools
 
